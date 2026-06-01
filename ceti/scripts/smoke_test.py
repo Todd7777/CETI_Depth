@@ -113,23 +113,29 @@ def test_avatars_pipeline():
 
 def test_whale_depth_pipeline():
     print("[5/8] Testing whale depth fine-tune pipeline (dry-run)...")
-    from ceti.depth.whale_depth_dataset import load_image_paths
-    from pathlib import Path
+    import subprocess
 
     train_list = REPO_ROOT / "ceti/data/whale_depth_train.txt"
-    if train_list.exists() and len(load_image_paths(train_list)) > 0:
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, str(REPO_ROOT / "ceti/depth/train_whale_depth.py"), "--dry-run"],
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr or result.stdout)
-        print("  ✓ Whale depth dry-run OK")
-    else:
-        print("  ⚠ Skipped (run: bash ceti/scripts/prepare_whale_depth_data.sh)")
+    config = REPO_ROOT / "ceti/configs/whale_depth_m5max_128gb.yaml"
+    if not train_list.exists():
+        print("  ⚠ Skipped (no whale_depth_train.txt)")
+        return
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "ceti/depth/train_whale_depth.py"),
+            "--config",
+            str(config),
+            "--dry-run",
+        ],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr or result.stdout)
+    print("  ✓ Whale depth dry-run OK")
 
 
 def test_underwater_train_config():

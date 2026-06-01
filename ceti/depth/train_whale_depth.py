@@ -134,22 +134,38 @@ def main():
         print("Run: bash ceti/scripts/curate_underwater_field.sh")
         sys.exit(1)
 
-    train_paths = load_image_paths(train_list, exist_only=True)
+    listed_paths = load_image_paths(train_list)
+    train_paths = [p for p in listed_paths if p.is_file()]
+
+    if len(listed_paths) == 0:
+        print("\nERROR: Training list is empty.")
+        print("Run: bash ceti/scripts/ensure_training_data.sh")
+        sys.exit(1)
+
+    if args.dry_run:
+        print(f"  List entries: {len(listed_paths)}")
+        print(f"  On disk:      {len(train_paths)}")
+        if len(train_paths) == 0:
+            print(
+                "  NOTE: No image files yet — OK for dry-run. "
+                "Before training run: bash ceti/scripts/ensure_training_data.sh"
+            )
+        elif len(train_paths) < len(listed_paths):
+            print(f"  WARNING:    {len(listed_paths) - len(train_paths)} list paths missing locally")
+        print("=" * 60)
+        print("Dry run complete — config and train list validated.")
+        return
+
     if len(train_paths) == 0:
         print("\nERROR: No training image files on disk.")
         print("Run: bash ceti/scripts/ensure_training_data.sh")
         sys.exit(1)
 
-    listed = len(load_image_paths(train_list))
-    if listed > len(train_paths):
-        print(f"  WARNING:    {listed - len(train_paths)} list entries missing locally")
+    if len(train_paths) < len(listed_paths):
+        print(f"  WARNING:    {len(listed_paths) - len(train_paths)} list entries missing locally")
 
     print(f"  Images:     {len(train_paths)} train (files on disk)")
     print("=" * 60)
-
-    if args.dry_run:
-        print("Dry run complete — config and data validated.")
-        return
 
     n_threads = configure_compute()
     prefer = cfg.get("device") or None
