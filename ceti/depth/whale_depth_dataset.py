@@ -72,7 +72,12 @@ def _repo_root_from_list_file(list_path: Path) -> Path:
     return list_path.resolve().parents[2]
 
 
-def load_image_paths(filenames_file: str | Path, repo_root: Path | None = None) -> list[Path]:
+def load_image_paths(
+    filenames_file: str | Path,
+    repo_root: Path | None = None,
+    *,
+    exist_only: bool = False,
+) -> list[Path]:
     """Load paths from a list file; resolve relative paths against repo root."""
     list_path = Path(filenames_file)
     root = repo_root or _repo_root_from_list_file(list_path)
@@ -85,7 +90,10 @@ def load_image_paths(filenames_file: str | Path, repo_root: Path | None = None) 
             p = Path(line)
             if not p.is_absolute():
                 p = root / p
-            paths.append(p.resolve())
+            p = p.resolve()
+            if exist_only and not p.is_file():
+                continue
+            paths.append(p)
     return paths
 
 
@@ -99,7 +107,20 @@ class WhaleDepthDataset(Dataset):
         preprocess_method: str = "none",
         augment: bool = True,
     ):
-        self.paths = load_image_paths(filenames_file)
+        all_paths = load_image_paths(filenames_file)
+        self.paths = [p for p in all_paths if p.is_file()]
+        missing = len(all_paths) - len(self.paths)
+        if missing:
+            print(
+                f"WARNING: {missing} images in list are missing on disk "
+                f"(using {len(self.paths)} found). "
+                f"Run: bash ceti/scripts/ensure_training_data.sh"
+            )
+        if not self.paths:
+            raise FileNotFoundError(
+                f"No image files found for {filenames_file}. "
+                "Run: bash ceti/scripts/ensure_training_data.sh"
+            )
         self.image_size = image_size
         self.preprocess_method = preprocess_method
         self.augment = augment

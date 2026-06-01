@@ -27,13 +27,7 @@ echo "  CPU threads: $OMP_NUM_THREADS"
 
 "$PYTHON" ceti/scripts/verify_mps.py
 
-TRAIN_LIST="${REPO_ROOT}/ceti/data/whale_depth_train.txt"
-if [ ! -f "$TRAIN_LIST" ] || [ "$(wc -l < "$TRAIN_LIST" | tr -d ' ')" -lt 500 ]; then
-  echo "Training list < 500 lines — running phase-1 online download…"
-  bash ceti/scripts/download_all_online_data.sh
-else
-  echo "Using existing train list ($(wc -l < "$TRAIN_LIST" | tr -d ' ') lines)"
-fi
+bash ceti/scripts/ensure_training_data.sh
 
 "$PYTHON" ceti/depth/train_whale_depth.py \
   --config "$CONFIG" \

@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Whale-Depth-Anything — M5 Max 128GB: setup → checkpoints → smoke → train
-# Run from repo root. Set secrets locally (never commit tokens):
-#   export HF_TOKEN='hf_...'              # optional, faster HF downloads
-#   export GITHUB_TOKEN='ghp_...'         # only for git pull, not needed here
+# Whale-Depth-Anything — M5 Max 128GB: setup → data → train (no broken git pull)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -17,39 +14,45 @@ echo " Whale-Depth-Anything — M5 Max full pipeline"
 echo " Repo: $REPO_ROOT"
 echo "============================================"
 
-# --- 1) Pull latest (if git repo) ---
-if git rev-parse --is-inside-work-tree &>/dev/null; then
-  if git remote get-url whale &>/dev/null; then
-    echo "[1/6] git pull from whale remote…"
-    git pull whale main || git pull origin main || true
+# --- 1) Optional git pull (never fail the pipeline) ---
+echo "[1/7] Git update (optional)…"
+if [ "${CETI_SKIP_GIT_PULL:-0}" = "1" ]; then
+  echo "  Skipped (CETI_SKIP_GIT_PULL=1)"
+elif git rev-parse --is-inside-work-tree &>/dev/null; then
+  PULLED=0
+  for remote in whale origin; do
+    if git remote get-url "$remote" &>/dev/null 2>&1; then
+      if git ls-remote --heads "$remote" main &>/dev/null 2>&1; then
+        echo "  git pull $remote main"
+        git pull "$remote" main && PULLED=1 && break || true
+      fi
+    fi
+  done
+  if [ "$PULLED" = "0" ]; then
+    echo "  No working git remote — continuing with local copy"
   fi
 else
-  echo "[1/6] Not a git repo — skip pull"
+  echo "  Not a git repo — skip"
 fi
 
 # --- 2) Venv + deps + MPS ---
-echo "[2/6] Mac MPS setup…"
+echo "[2/7] Mac MPS setup…"
 bash ceti/scripts/setup_mac_mps.sh
 
-# --- 3) Checkpoints (uses HF_TOKEN if set) ---
-echo "[3/6] Download checkpoints…"
+# --- 3) Checkpoints ---
+echo "[3/7] Download checkpoints…"
 bash ceti/scripts/download_checkpoints.sh
 
 # --- 4) Smoke test ---
-echo "[4/6] Smoke test…"
+echo "[4/7] Smoke test…"
 "${REPO_ROOT}/.venv/bin/python" ceti/scripts/smoke_test.py
 
-# --- 5) Training data ---
-TRAIN_LIST="${REPO_ROOT}/ceti/data/whale_depth_train.txt"
-if [ ! -f "$TRAIN_LIST" ] || [ "$(wc -l < "$TRAIN_LIST" | tr -d ' ')" -lt 500 ]; then
-  echo "[5/6] Download phase-1 underwater RGB…"
-  bash ceti/scripts/download_all_online_data.sh
-else
-  echo "[5/6] Train list OK ($(wc -l < "$TRAIN_LIST" | tr -d ' ') lines)"
-fi
+# --- 5) Training images MUST exist on disk ---
+echo "[5/7] Ensure training data on disk…"
+bash ceti/scripts/ensure_training_data.sh
 
 # --- 6) Full training + proof ---
-echo "[6/6] Full training (ViT-L, MPS)…"
+echo "[6/7] Full training (ViT-L, MPS)…"
 bash ceti/scripts/train_mac_full.sh
 
 echo ""

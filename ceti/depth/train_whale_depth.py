@@ -134,13 +134,17 @@ def main():
         print("Run: bash ceti/scripts/curate_underwater_field.sh")
         sys.exit(1)
 
-    train_paths = load_image_paths(train_list)
+    train_paths = load_image_paths(train_list, exist_only=True)
     if len(train_paths) == 0:
-        print("\nERROR: No training images in file list.")
-        print("Run: bash ceti/scripts/curate_underwater_field.sh")
+        print("\nERROR: No training image files on disk.")
+        print("Run: bash ceti/scripts/ensure_training_data.sh")
         sys.exit(1)
 
-    print(f"  Images:     {len(train_paths)} train")
+    listed = len(load_image_paths(train_list))
+    if listed > len(train_paths):
+        print(f"  WARNING:    {listed - len(train_paths)} list entries missing locally")
+
+    print(f"  Images:     {len(train_paths)} train (files on disk)")
     print("=" * 60)
 
     if args.dry_run:
