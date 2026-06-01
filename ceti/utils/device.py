@@ -117,17 +117,49 @@ def device_name(device: "torch.device") -> str:
     return f"CPU ({os.cpu_count()} cores)"
 
 
-def optimal_dataloader_workers(requested: int | None = None) -> int:
+def configure_mps_for_training() -> None:
+    """
+    Reduce MPS OOM / 'Killed: 9' on Mac during ViT-L teacher–student training.
+
+    Call once before training (not needed for inference-only).
+    """
+    if platform.system() != "Darwin":
+        return
+    # Allow PyTorch to grow MPS allocations under memory pressure (PyTorch 2.x)
+    os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
+    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
+
+def optimal_dataloader_workers(
+    requested: int | None = None,
+    device: "torch.device | None" = None,
+) -> int:
     """
     DataLoader workers for the current platform.
 
-    macOS + MPS: 4–10 workers; Linux CUDA: up to requested.
+    macOS + MPS: default **0** (multiprocessing duplicates RAM → 'Killed: 9').
+    Override: export CETI_DATALOADER_WORKERS=4
     """
+    import torch
+
+    if os.environ.get("CETI_DATALOADER_WORKERS", "").strip().isdigit():
+        return int(os.environ["CETI_DATALOADER_WORKERS"])
+
     n = os.cpu_count() or 8
+    dev = device
+    if dev is None:
+        try:
+            dev = get_device()
+        except Exception:
+            dev = None
+
+    if platform.system() == "Darwin" and dev is not None and dev.type == "mps":
+        return 0
+
     if requested is not None:
         return max(0, min(requested, n))
     if platform.system() == "Darwin":
-        return min(10, max(4, n // 3))
+        return 0
     return min(12, max(4, n // 2))
 
 

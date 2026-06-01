@@ -117,7 +117,8 @@ python ceti/depth/infer_robot.py \
 | `FileNotFoundError` for `data/underwater_field/rgb/...` | Run `bash ceti/scripts/ensure_training_data.sh` |
 | `whale does not appear to be a git repository` | `export CETI_SKIP_GIT_PULL=1` or ignore — not fatal |
 | Metric checkpoint 404 | OK — optional; relative training uses ViT-L `.pth` only |
-| OOM on GPU | Edit `ceti/configs/whale_depth_m5max_128gb.yaml`: `batch_size: 16` or `12` |
+| `Killed: 9` during epoch 1 | **Fixed:** `workers: 0`, `batch_size: 10`. If still killed: `--batch-size 6` or `export CETI_TEACHER_ON_CPU=1` |
+| OOM on GPU | Lower `batch_size` to 8 or 6; keep `workers: 0` on Mac |
 | Training on CPU | Fix PyTorch Metal; must see `MPS / Metal` in log |
 
 ---
@@ -126,5 +127,5 @@ python ceti/depth/infer_robot.py \
 
 File: `ceti/configs/whale_depth_m5max_128gb.yaml`
 
-- ViT-L, batch 20, 40 epochs, MPS, AMP
+- ViT-L, batch 10, workers 0, 40 epochs, MPS, AMP
 - Override: `export CETI_TRAIN_CONFIG=ceti/configs/whale_depth_phase1.yaml`

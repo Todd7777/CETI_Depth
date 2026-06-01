@@ -32,6 +32,7 @@ from ceti.depth.whale_depth_dataset import WhaleDepthDataset, load_image_paths
 from ceti.utils.device import (
     autocast_device_type,
     configure_compute,
+    configure_mps_for_training,
     device_name,
     empty_cache,
     optimal_dataloader_workers,
@@ -167,16 +168,24 @@ def main():
     print(f"  Images:     {len(train_paths)} train (files on disk)")
     print("=" * 60)
 
+    import os
+
+    configure_mps_for_training()
     n_threads = configure_compute()
     prefer = cfg.get("device") or None
     if prefer:
-        import os
         os.environ.setdefault("CETI_DEVICE", str(prefer))
     device = require_mps_for_training()
     print(f"Device: {device_name(device)}  (threads={n_threads})")
     amp_dtype = autocast_device_type(device)
 
-    teacher = build_model(encoder, hub_id, str(device)).eval()
+    # Optional: CETI_TEACHER_ON_CPU=1 saves MPS memory (slower teacher forward)
+    teacher_device = str(device)
+    if os.environ.get("CETI_TEACHER_ON_CPU", "").strip() in ("1", "true", "yes"):
+        teacher_device = "cpu"
+        print("  Teacher on CPU (CETI_TEACHER_ON_CPU=1) — saves MPS memory")
+
+    teacher = build_model(encoder, hub_id, teacher_device).eval()
     for p in teacher.parameters():
         p.requires_grad = False
 
@@ -198,9 +207,12 @@ def main():
         preprocess_method=cfg.get("preprocess_method", "none"),
         augment=cfg.get("marine_augment", True),
     )
-    workers = optimal_dataloader_workers(cfg.get("workers"))
-    train_loader = DataLoader(
-        train_ds,
+    workers = optimal_dataloader_workers(cfg.get("workers"), device=device)
+    print(f"  Batch size: {batch_size}  DataLoader workers: {workers}")
+    if device.type == "mps" and batch_size > 12:
+        print("  Tip: if training is 'Killed: 9', lower batch_size to 8 in config or --batch-size 8")
+
+    loader_kw: dict = dict(
         batch_size=batch_size,
         shuffle=True,
         num_workers=workers,
@@ -208,6 +220,9 @@ def main():
         persistent_workers=workers > 0,
         drop_last=len(train_ds) >= batch_size,
     )
+    if workers > 0:
+        loader_kw["prefetch_factor"] = 2
+    train_loader = DataLoader(train_ds, **loader_kw)
 
     val_loader = None
     if val_list.exists() and len(load_image_paths(val_list)) > 0:
@@ -243,8 +258,14 @@ def main():
             optimizer.zero_grad(set_to_none=True)
 
             with torch.no_grad():
-                with torch.autocast(device_type=amp_dtype, enabled=use_amp):
-                    target = predict_depth(teacher, images)
+                teacher_in = images if teacher_device == str(device) else images.to(teacher_device)
+                with torch.autocast(
+                    device_type=autocast_device_type(torch.device(teacher_device)),
+                    enabled=use_amp and teacher_device != "cpu",
+                ):
+                    target = predict_depth(teacher, teacher_in)
+                if teacher_device != str(device):
+                    target = target.to(device)
 
             with torch.autocast(device_type=amp_dtype, enabled=use_amp):
                 pred = predict_depth(student, images)

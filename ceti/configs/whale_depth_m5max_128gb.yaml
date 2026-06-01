@@ -12,10 +12,11 @@ encoder: vitl
 pretrained_model: LiheYoung/depth_anything_vitl14
 image_size: 518
 
-# M5 Max 128GB — ViT-L @ 518²; reduce batch_size to 16 if OOM
+# M5 Max 128GB — ViT-L teacher+student on MPS (workers MUST be 0 on Mac)
+# If 'Killed: 9': batch_size 6, or export CETI_TEACHER_ON_CPU=1
 epochs: 40
-batch_size: 20
-workers: 8
+batch_size: 10
+workers: 0
 lr: 8.0e-6
 encoder_lr: 8.0e-7
 weight_decay: 0.01
