@@ -39,7 +39,7 @@ Camera (ROV / Aerial Drone)
 
 ## Quick Start (Mac M5 Max 128GB — recommended)
 
-See **[README.md](../README.md)** for the CETI Depth professor demo and portal.
+See **[README.md](../README.md)** for the research portal and upload pipeline.
 
 ```bash
 git clone https://github.com/Todd7777/CETI_Depth.git
@@ -80,17 +80,17 @@ python ceti/depth/infer_robot.py \
 
 Artifacts land in `ceti/outputs/proof/` (side-by-side panels + `report.json`).
 
-### Professor / lab upload demo (JPEG + MP4 → RGB|depth)
+### Lab upload (JPEG + MP4 → depth / point clouds)
 
 **Drop folder:** copy files into `ceti/inbox/uploads/`, then:
 
 ```bash
-bash ceti/scripts/run_professor_pipeline.sh
+bash ceti/scripts/run_upload_pipeline.sh
 ```
 
-**Web portal:** `bash ceti/scripts/launch_professor_portal.sh` → http://127.0.0.1:7860
+**Web portal:** `bash ceti/scripts/launch_portal.sh` → http://127.0.0.1:7860
 
-Full guide: [docs/PROFESSOR_DEMO.md](docs/PROFESSOR_DEMO.md) · inbox help: [inbox/README.md](inbox/README.md)
+Full guide: [docs/PORTAL.md](docs/PORTAL.md) · inbox help: [inbox/README.md](inbox/README.md)
 
 ## Real Underwater Imagery (not synthetic)
 

@@ -1,4 +1,4 @@
-# FINAL — M5 Max 128GB bulletproof fast training (Professor Gil / CETI Track B2)
+# FINAL — M5 Max 128GB fast training (CETI Track B2)
 # Run: bash ceti/scripts/mac_train_bulletproof.sh
 #
 # Strategy: cache frozen teacher depth ONCE → train student only on MPS (~2× faster/safer)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Professor drop-folder pipeline:
+# Drop-folder upload pipeline:
 #   1. Copy JPEGs / MP4s into ceti/inbox/uploads/
 #   2. Run this script
 #   3. Open ceti/inbox/results/<timestamp>/index.html
@@ -21,7 +21,7 @@ UPLOAD_DIR="${CETI_INBOX:-${REPO_ROOT}/ceti/inbox/uploads}"
 CKPT="${CETI_DEPTH_CKPT:-${REPO_ROOT}/checkpoints/ceti_whale_depth/best.pt}"
 
 echo "============================================"
-echo " CETI Depth — Professor Upload Pipeline"
+echo " CETI Depth — Upload Pipeline"
 echo "============================================"
 echo "  Drop zone:  ${UPLOAD_DIR}"
 echo "  Checkpoint: ${CKPT}"
@@ -42,10 +42,10 @@ if [ "$N" -eq 0 ]; then
   echo "  1. Copy images/videos into:"
   echo "       ${UPLOAD_DIR}"
   echo "  2. Re-run:"
-  echo "       bash ceti/scripts/run_professor_pipeline.sh"
+  echo "       bash ceti/scripts/run_upload_pipeline.sh"
   echo ""
   echo "  Or use the web portal:"
-  echo "       bash ceti/scripts/launch_professor_portal.sh"
+  echo "       bash ceti/scripts/launch_portal.sh"
   exit 1
 fi
 

@@ -1,5 +1,5 @@
 """
-Accurate underwater depth in meters for professor uploads.
+Metric underwater depth in meters for lab uploads.
 
 Combines:
   1. CETI fine-tuned relative depth (vitl, whale/marine) — good structure in UW scenes

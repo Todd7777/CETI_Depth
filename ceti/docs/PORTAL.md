@@ -1,4 +1,4 @@
-# Professor demo
+# Research portal and upload pipeline
 
 Upload JPEG or MP4 tank footage and produce CETI depth maps and 3D point clouds.
 
@@ -12,7 +12,7 @@ ls checkpoints/ceti_whale_depth/best.pt
 ## Web portal
 
 ```bash
-bash ceti/scripts/launch_professor_portal.sh
+bash ceti/scripts/launch_portal.sh
 ```
 
 1. Open http://127.0.0.1:7860  
@@ -24,7 +24,7 @@ bash ceti/scripts/launch_professor_portal.sh
 | Step | Action |
 |------|--------|
 | 1 | Copy `.jpg`, `.png`, or `.mp4` into `ceti/inbox/uploads/` |
-| 2 | Run `bash ceti/scripts/run_professor_pipeline.sh` |
+| 2 | Run `bash ceti/scripts/run_upload_pipeline.sh` |
 | 3 | Open `ceti/inbox/results/<timestamp>/index.html` |
 
 ## Outputs
@@ -58,9 +58,9 @@ results/<timestamp>/
 ## Environment
 
 ```bash
-export CETI_TANK_PRESET=tank_roi_ceti_full   # tank ROI + payload segmentation
-export CETI_INBOX=~/path/to/uploads         # custom upload directory
-export CETI_DEPTH_CKPT=/path/to/best.pt     # custom checkpoint
+export CETI_TANK_PRESET=tank_roi_ceti_full
+export CETI_INBOX=~/path/to/uploads
+export CETI_DEPTH_CKPT=/path/to/best.pt
 ```
 
 ## API integration

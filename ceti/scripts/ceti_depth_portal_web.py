@@ -2,7 +2,7 @@
 """
 CETI Research Portal — point clouds + depth noise study (Flask).
 
-  bash ceti/scripts/launch_professor_portal.sh
+  bash ceti/scripts/launch_portal.sh
   → http://127.0.0.1:7860
 """
 

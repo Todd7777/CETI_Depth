@@ -2,7 +2,7 @@
 """
 Gradio portal: upload JPEGs / MP4s → CETI fine-tuned RGB|depth outputs.
 
-Note: launch_professor_portal.sh uses ceti_depth_portal_web.py (Flask) by default.
+Note: launch_portal.sh uses ceti_depth_portal_web.py (Flask) by default.
 This Gradio variant is optional: python ceti/scripts/ceti_depth_portal.py
 """
 
@@ -110,7 +110,7 @@ def build_demo() -> gr.Blocks:
     with gr.Blocks(title="CETI Underwater Depth", theme=gr.themes.Soft()) as demo:
         gr.Markdown(
             """
-# CETI Underwater Depth (Professor Demo)
+# CETI Underwater Depth
 
 Upload **JPEG/PNG images** or **MP4 videos**. The fine-tuned **Depth Anything ViT-L** model
 produces a side-by-side panel: **RGB (left) | relative depth (right)**.
@@ -146,7 +146,7 @@ Depth is **relative** (not meters). Underwater color correction is applied by de
             """
 ---
 **Drop-folder alternative:** copy files into `ceti/inbox/uploads/` and run  
-`bash ceti/scripts/run_professor_pipeline.sh`
+`bash ceti/scripts/run_upload_pipeline.sh`
             """
         )
     return demo

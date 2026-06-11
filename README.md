@@ -31,12 +31,12 @@ bash ceti/scripts/setup_mac_mps.sh
 
 Place `best.pt` under `checkpoints/ceti_whale_depth/` if not produced locally.
 
-## Professor demo (recommended)
+## Lab upload (recommended)
 
 ### Web portal
 
 ```bash
-bash ceti/scripts/launch_professor_portal.sh
+bash ceti/scripts/launch_portal.sh
 ```
 
 Open http://127.0.0.1:7860 — upload DJI Action 4 stills or clips, generate point clouds, browse runs, open the 3D explorer.
@@ -45,12 +45,12 @@ Open http://127.0.0.1:7860 — upload DJI Action 4 stills or clips, generate poi
 
 ```bash
 cp /path/to/images/*.png ceti/inbox/uploads/
-bash ceti/scripts/run_professor_pipeline.sh
+bash ceti/scripts/run_upload_pipeline.sh
 ```
 
 Results: `ceti/inbox/results/<timestamp>/` (`index.html`, `pointclouds/*.ply`, previews, `manifest.json`).
 
-Full instructions: [`ceti/docs/PROFESSOR_DEMO.md`](ceti/docs/PROFESSOR_DEMO.md)
+Full instructions: [`ceti/docs/PORTAL.md`](ceti/docs/PORTAL.md)
 
 ## Configuration
 
@@ -70,7 +70,7 @@ Camera intrinsics: [`ceti/configs/dji_action4.yaml`](ceti/configs/dji_action4.ya
 ceti/
 ├── configs/           ROI, camera, training configs
 ├── depth/             Inference, training, upload pipeline
-├── docs/              Professor demo, accuracy notes, setup
+├── docs/              Portal guide, accuracy notes, setup
 ├── geometry/          Intrinsics, point-cloud export, 3D previews
 ├── inbox/             Upload drop zone and generated runs (gitignored)
 ├── preprocessing/     Tank ROI, payload segmentation, underwater prep

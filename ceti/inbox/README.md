@@ -6,13 +6,13 @@ Local upload and results directories. Generated content is not committed to git.
 
 ```bash
 cp images/*.png ceti/inbox/uploads/
-bash ceti/scripts/run_professor_pipeline.sh
+bash ceti/scripts/run_upload_pipeline.sh
 ```
 
 Or use the research portal:
 
 ```bash
-bash ceti/scripts/launch_professor_portal.sh
+bash ceti/scripts/launch_portal.sh
 ```
 
 ## Layout

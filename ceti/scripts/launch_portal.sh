@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Browser upload UI for professor demo (Flask — works on Python 3.13).
+# CETI research portal (Flask).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -26,7 +26,6 @@ fi
   "$PYTHON" -m pip install -q 'flask>=3.0.0'
 }
 
-# Stop any previous portal on this port (stale code won't pick up fixes).
 if command -v lsof >/dev/null 2>&1; then
   OLD_PIDS="$(lsof -ti tcp:"${CETI_PORTAL_PORT}" 2>/dev/null || true)"
   if [ -n "$OLD_PIDS" ]; then
@@ -42,7 +41,7 @@ echo "============================================"
 echo "  URL:    http://127.0.0.1:${CETI_PORTAL_PORT}"
 echo "  Health: http://127.0.0.1:${CETI_PORTAL_PORT}/health"
 echo "  Preset: ${CETI_TANK_PRESET}"
-echo "  CLI:    bash ceti/scripts/run_professor_pipeline.sh"
+echo "  CLI:    bash ceti/scripts/run_upload_pipeline.sh"
 echo ""
 
 exec "$PYTHON" -u ceti/scripts/ceti_depth_portal_web.py

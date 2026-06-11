@@ -1,9 +1,9 @@
 """
-Batch depth inference for professor / lab uploads (JPEG, PNG, MP4, …).
+Batch depth inference for lab uploads (JPEG, PNG, MP4, …).
 
 Used by:
-  - ceti/scripts/run_professor_pipeline.sh  (drop-folder workflow)
-  - ceti/scripts/ceti_depth_portal.py       (Gradio upload UI)
+  - ceti/scripts/run_upload_pipeline.sh
+  - ceti/scripts/ceti_depth_portal_web.py
 """
 
 from __future__ import annotations
@@ -1141,7 +1141,7 @@ def run_inbox_drop_folder(
     *,
     move_processed: bool = False,
 ) -> dict:
-    """Process every file in ceti/inbox/uploads/ (professor drop folder)."""
+    """Process every file in ceti/inbox/uploads/."""
     upload_dir = upload_dir or INBOX_UPLOADS
     upload_dir.mkdir(parents=True, exist_ok=True)
     INBOX_RESULTS.mkdir(parents=True, exist_ok=True)
