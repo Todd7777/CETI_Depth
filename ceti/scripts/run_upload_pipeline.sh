@@ -11,7 +11,9 @@ cd "$REPO_ROOT"
 PYTHON="${REPO_ROOT}/.venv/bin/python"
 [ -x "$PYTHON" ] || PYTHON=python3
 
-export CETI_DEVICE="${CETI_DEVICE:-mps}"
+export CETI_DEVICE="${CETI_DEVICE:-$(
+  if [[ "$(uname -s)" == "Darwin" ]]; then echo mps; else echo cuda; fi
+)}"
 export CETI_UNIFIED_MEMORY_GB="${CETI_UNIFIED_MEMORY_GB:-128}"
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 export CETI_DEPTH_MODE="${CETI_DEPTH_MODE:-pointcloud}"

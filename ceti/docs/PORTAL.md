@@ -5,9 +5,15 @@ Upload JPEG or MP4 tank footage and produce CETI depth maps and 3D point clouds.
 ## Prerequisites
 
 ```bash
-bash ceti/scripts/setup_mac_mps.sh
+bash ceti/scripts/setup_mac_mps.sh   # macOS
+# or
+bash ceti/scripts/setup_pointcloud_linux.sh   # Linux
+
+bash ceti/scripts/download_ceti_checkpoint.sh
 ls checkpoints/ceti_whale_depth/best.pt
 ```
+
+The fine-tuned model (~1.2 GB) is hosted on Hugging Face (`Todd7777/ceti-whale-depth`), not in git.
 
 ## Web portal
 
@@ -50,7 +56,7 @@ results/<timestamp>/
 
 | Issue | Resolution |
 |-------|------------|
-| Missing checkpoint | Train or copy `checkpoints/ceti_whale_depth/best.pt` |
+| Missing checkpoint | Run `bash ceti/scripts/download_ceti_checkpoint.sh` |
 | Empty upload folder | Add files to `ceti/inbox/uploads/` |
 | Slow video | ViT-L on MPS ~3–4 FPS; use shorter clips for demos |
 | Flask missing | `pip install flask` (included in setup script) |

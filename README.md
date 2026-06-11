@@ -29,7 +29,13 @@ cd CETI_Depth
 bash ceti/scripts/setup_mac_mps.sh
 ```
 
-Place `best.pt` under `checkpoints/ceti_whale_depth/` if not produced locally.
+Place `best.pt` under `checkpoints/ceti_whale_depth/` if not produced locally:
+
+```bash
+bash ceti/scripts/download_ceti_checkpoint.sh
+```
+
+The checkpoint (~1.2 GB) is on Hugging Face, not GitHub — see `ceti/scripts/upload_ceti_checkpoint_to_hf.sh` for maintainers.
 
 ## Lab upload (recommended)
 
