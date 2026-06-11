@@ -97,5 +97,4 @@ Depth Anything components: see [`LICENSE`](LICENSE). CETI extensions follow the 
 ## References
 
 - Yang et al., Depth Anything, CVPR 2024  
-- Gil et al., AVATARS, Harvard SEAS  
 - [Project CETI](https://www.projectceti.org/)
