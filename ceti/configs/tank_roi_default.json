@@ -1,0 +1,6 @@
+{
+  "description": "Default crop margins for CETI tank camera (fraction of width/height). Increase top margin if a window band is visible.",
+  "margins": [0.10, 0.18, 0.10, 0.08],
+  "exclude_bright": true,
+  "center_fraction": 0.72
+}

@@ -1,0 +1,49 @@
+{
+  "description": "CETI full-tank camera: payload box only (image-fitted frame + blue motor).",
+  "margins": [0.05, 0.28, 0.12, 0.06],
+  "exclude_zones": [
+    {
+      "name": "surface_reflection",
+      "frac": [0.0, 0.0, 1.0, 0.26]
+    },
+    {
+      "name": "window",
+      "frac": [0.20, 0.30, 0.80, 0.92]
+    },
+    {
+      "name": "right_arm",
+      "frac": [0.78, 0.12, 1.0, 0.98]
+    },
+    {
+      "name": "tank_floor",
+      "frac": [0.0, 0.80, 1.0, 1.0]
+    }
+  ],
+  "subject_zone": {
+    "name": "payload_box",
+    "frac": [0.28, 0.32, 0.72, 0.84]
+  },
+  "payload_segmentation": {
+    "method": "payload_box_image_fitted",
+    "zone_frac": [0.28, 0.32, 0.72, 0.84],
+    "min_area": 600,
+    "bright_l_threshold": 155,
+    "dark_l_max": 130,
+    "void_l_threshold": 120,
+    "frame_scan_px": 30,
+    "frame_min_margin_px": 11,
+    "frame_max_above_motor_px": 24,
+    "frame_max_below_motor_px": 20,
+    "frame_pad_px": 2,
+    "frame_bar_frac": 0.095,
+    "frame_bar_min_px": 5,
+    "frame_bar_max_px": 13,
+    "edge_peak_thresh": 0.26,
+    "prefer_blue_seed": true,
+    "apply_hard_excludes": true
+  },
+  "exclude_bright": true,
+  "bright_l_threshold": 200,
+  "center_fraction": 1.0,
+  "prefer_blue_subject": false
+}

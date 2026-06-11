@@ -39,18 +39,13 @@ Camera (ROV / Aerial Drone)
 
 ## Quick Start (Mac M5 Max 128GB — recommended)
 
-See **[README_WHALE_DEPTH.md](../README_WHALE_DEPTH.md)** for the [Whale-Depth-Anything](https://github.com/Todd7777/Whale-Depth-Anything) repo.
+See **[README.md](../README.md)** for the CETI Depth professor demo and portal.
 
 ```bash
-cd Whale-Depth-Anything
-
-# 1. Mac setup: venv, PyTorch Metal, checkpoints, MPS verify
+git clone https://github.com/Todd7777/CETI_Depth.git
+cd CETI_Depth
 bash ceti/scripts/setup_mac_mps.sh
-
-# 2. Phase-1 public underwater RGB (~6k images)
 bash ceti/scripts/download_all_online_data.sh
-
-# 3. Full train on MPS (ViT-L, batch 16, 40 epochs) + prove pipeline
 bash ceti/scripts/train_mac_full.sh
 ```
 
@@ -84,6 +79,18 @@ python ceti/depth/infer_robot.py \
 ```
 
 Artifacts land in `ceti/outputs/proof/` (side-by-side panels + `report.json`).
+
+### Professor / lab upload demo (JPEG + MP4 → RGB|depth)
+
+**Drop folder:** copy files into `ceti/inbox/uploads/`, then:
+
+```bash
+bash ceti/scripts/run_professor_pipeline.sh
+```
+
+**Web portal:** `bash ceti/scripts/launch_professor_portal.sh` → http://127.0.0.1:7860
+
+Full guide: [docs/PROFESSOR_DEMO.md](docs/PROFESSOR_DEMO.md) · inbox help: [inbox/README.md](inbox/README.md)
 
 ## Real Underwater Imagery (not synthetic)
 

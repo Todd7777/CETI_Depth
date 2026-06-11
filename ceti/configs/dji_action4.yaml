@@ -1,0 +1,39 @@
+# DJI Osmo Action 4 — optical intrinsics for depth → point cloud unprojection
+# Sources: DJI specs (155° ultra-wide FOV, f/2.8, 12.7 mm equiv., 1/1.3" sensor, 10 MP 4:3)
+
+camera: DJI Osmo Action 4
+native_resolution:
+  width: 3648
+  height: 2736
+  aspect: "4:3"
+
+sensor_mm:
+  width: 9.6
+  height: 7.2
+  note: "1/1.3 inch CMOS typical active area"
+
+lens:
+  fov_diagonal_deg: 155.0
+  f_number: 2.8
+  focal_length_35mm_equiv_mm: 12.7
+  focus: fixed
+
+# Default unprojection for CETI / Depth Anything relative depth maps.
+# Pinhole Z-depth matches monocular network training better than fisheye range.
+default_model: pinhole
+default_depth_semantics: z_depth
+
+# Fisheye equidistant available via CETI_UNPROJECT_MODEL=fisheye_equidistant
+
+# Pinhole fx/fy derived from 35 mm equivalent focal length (good for network depth maps)
+pinhole:
+  fx_native: 1228.8
+  fy_native: 1228.8
+  cx_native: 1824.0
+  cy_native: 1368.0
+
+# Fisheye equidistant: r_px = f * theta (matches published diagonal FOV)
+fisheye_equidistant:
+  f_native: 1685.0
+  cx_native: 1824.0
+  cy_native: 1368.0

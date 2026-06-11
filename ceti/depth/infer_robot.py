@@ -27,12 +27,39 @@ from depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
 from ceti.preprocessing.underwater import preprocess_underwater
 from ceti.utils.device import configure_compute, device_name, get_device
 
+VALID_ENCODERS = ("vits", "vitb", "vitl")
+
+
+def resolve_encoder(
+    checkpoint: str | Path | None,
+    encoder: str | None = None,
+    *,
+    default: str = "vits",
+) -> str:
+    """
+    Pick ViT variant for Depth Anything.
+
+    CETI checkpoints store ``encoder`` (vitl for whale training). If a checkpoint
+    path is given, its metadata wins unless ``encoder`` is set explicitly.
+    """
+    if encoder in VALID_ENCODERS:
+        return encoder
+    if checkpoint:
+        ckpt_path = Path(checkpoint)
+        if ckpt_path.exists():
+            ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+            enc = ckpt.get("encoder")
+            if enc in VALID_ENCODERS:
+                return enc
+    return default
+
 
 def build_depth_model(
-    encoder: str,
+    encoder: str | None,
     device: str,
     checkpoint: str | None = None,
 ) -> tuple[torch.nn.Module, Compose]:
+    encoder = resolve_encoder(checkpoint, encoder)
     model = DepthAnything.from_pretrained(
         f"LiheYoung/depth_anything_{encoder}14"
     ).to(device)
@@ -41,12 +68,28 @@ def build_depth_model(
         ckpt_path = Path(checkpoint)
         if ckpt_path.exists():
             ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+            ckpt_enc = ckpt.get("encoder")
+            if ckpt_enc in VALID_ENCODERS and ckpt_enc != encoder:
+                raise RuntimeError(
+                    f"Checkpoint encoder={ckpt_enc} but model built as {encoder}. "
+                    "Pass matching --encoder or omit it for auto-detect."
+                )
             state = ckpt.get("model", ckpt)
-            model.load_state_dict(state, strict=False)
+            missing, unexpected = model.load_state_dict(state, strict=False)
+            if missing or unexpected:
+                print(
+                    f"WARNING: depth state_dict mismatch "
+                    f"(missing={len(missing)}, unexpected={len(unexpected)})"
+                )
             tag = ckpt.get("type", "checkpoint")
-            print(f"Loaded depth weights: {ckpt_path} ({tag})")
+            epoch = ckpt.get("epoch", "?")
+            print(
+                f"Loaded depth weights: {ckpt_path} ({tag}, encoder={encoder}, epoch={epoch})"
+            )
         else:
             print(f"WARNING: depth checkpoint not found: {ckpt_path}")
+    else:
+        print(f"Using pretrained Depth Anything ({encoder}), no CETI checkpoint")
 
     model.eval()
 
@@ -77,13 +120,13 @@ def build_whale_detector(checkpoint: str | None):
 
 
 @torch.no_grad()
-def predict_depth(
+def predict_depth_raw(
     model: torch.nn.Module,
     transform: Compose,
     bgr_image: np.ndarray,
     device: str,
 ) -> np.ndarray:
-    """Return normalized depth map (HxW, float32, 0-255)."""
+    """Return raw relative depth (HxW float32, model units — not meters)."""
     h, w = bgr_image.shape[:2]
     rgb = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB) / 255.0
     tensor = transform({"image": rgb})["image"]
@@ -91,7 +134,18 @@ def predict_depth(
 
     depth = model(tensor)
     depth = F.interpolate(depth[None], (h, w), mode="bilinear", align_corners=False)[0, 0]
-    depth = depth.cpu().numpy()
+    return depth.float().cpu().numpy()
+
+
+@torch.no_grad()
+def predict_depth(
+    model: torch.nn.Module,
+    transform: Compose,
+    bgr_image: np.ndarray,
+    device: str,
+) -> np.ndarray:
+    """Return normalized depth map (HxW, float32, 0-255)."""
+    depth = predict_depth_raw(model, transform, bgr_image, device)
     depth_norm = (depth - depth.min()) / (depth.max() - depth.min() + 1e-8) * 255.0
     return depth_norm.astype(np.float32)
 
@@ -161,7 +215,13 @@ def main():
     parser = argparse.ArgumentParser(description="CETI robot perception inference")
     parser.add_argument("--input", type=str, default="0", help="Image, video, directory, or camera index")
     parser.add_argument("--outdir", type=str, default="./ceti/outputs/inference")
-    parser.add_argument("--encoder", type=str, default="vits", choices=["vits", "vitb", "vitl"])
+    parser.add_argument(
+        "--encoder",
+        type=str,
+        default=None,
+        choices=["vits", "vitb", "vitl"],
+        help="ViT size (default: read from --depth-checkpoint, else vits)",
+    )
     parser.add_argument(
         "--depth-checkpoint",
         type=str,
@@ -185,7 +245,8 @@ def main():
     device = get_device()
     print(f"Device: {device_name(device)}")
 
-    depth_model, transform = build_depth_model(args.encoder, str(device), args.depth_checkpoint)
+    depth_enc = resolve_encoder(args.depth_checkpoint, args.encoder)
+    depth_model, transform = build_depth_model(depth_enc, str(device), args.depth_checkpoint)
     whale_detector = build_whale_detector(args.whale_checkpoint)
 
     outdir = Path(args.outdir)

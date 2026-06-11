@@ -25,7 +25,8 @@ sys.path.insert(0, str(REPO_ROOT))
 
 def main():
     parser = argparse.ArgumentParser(description="CETI ROS2 perception node")
-    parser.add_argument("--encoder", type=str, default="vits", choices=["vits", "vitb", "vitl"])
+    parser.add_argument("--encoder", type=str, default=None, choices=["vits", "vitb", "vitl"])
+    parser.add_argument("--depth-checkpoint", type=str, default=None)
     parser.add_argument("--image-topic", type=str, default="/robot/camera/image_raw")
     parser.add_argument("--depth-topic", type=str, default="/ceti/depth")
     parser.add_argument("--detection-topic", type=str, default="/ceti/whale_detections")
@@ -52,12 +53,14 @@ def main():
         build_depth_model,
         build_whale_detector,
         process_frame,
+        resolve_encoder,
     )
 
     from ceti.utils.device import get_device
 
     device = str(get_device())
-    depth_model, transform = build_depth_model(args.encoder, device)
+    depth_enc = resolve_encoder(args.depth_checkpoint, args.encoder)
+    depth_model, transform = build_depth_model(depth_enc, device, args.depth_checkpoint)
     whale_detector = build_whale_detector(args.whale_checkpoint)
 
     class CETIPerceptionNode(Node):

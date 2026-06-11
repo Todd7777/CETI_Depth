@@ -21,15 +21,26 @@ def _ensure_zoe_path() -> None:
         sys.path.insert(0, str(REPO_ROOT))
 
 
-def prepare_metric_depth_env() -> None:
-    """ZoeDepth metric code expects cwd=metric_depth and ./checkpoints (symlink to repo)."""
+def prepare_metric_depth_env() -> str:
+    """
+    ZoeDepth metric code expects cwd=metric_depth with ./checkpoints and ./torchhub.
+
+    Returns:
+        Previous working directory (caller should restore after loading metric model).
+    """
+    prev = os.getcwd()
     os.chdir(METRIC_DEPTH)
-    ckpt_link = METRIC_DEPTH / "checkpoints"
-    ckpt_target = REPO_ROOT / "checkpoints"
-    if not ckpt_target.exists():
-        raise FileNotFoundError(f"Missing checkpoints dir: {ckpt_target}")
-    if not ckpt_link.exists():
-        ckpt_link.symlink_to(ckpt_target, target_is_directory=True)
+    for name, target in (
+        ("checkpoints", REPO_ROOT / "checkpoints"),
+        ("torchhub", REPO_ROOT / "torchhub"),
+    ):
+        link = METRIC_DEPTH / name
+        if not target.exists():
+            raise FileNotFoundError(f"Missing {name} dir: {target}")
+        if link.exists():
+            continue
+        link.symlink_to(target, target_is_directory=True)
+    return prev
 
 
 def register_ceti_dataset(

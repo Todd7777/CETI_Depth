@@ -70,7 +70,7 @@ def prove_relative_depth(report: dict, *, quick: bool = False) -> None:
 
     from depth_anything.dpt import DepthAnything
     from depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
-    from ceti.depth.infer_robot import build_depth_model, predict_depth
+    from ceti.depth.infer_robot import build_depth_model, predict_depth, resolve_encoder
     from ceti.preprocessing.underwater import preprocess_underwater
     from ceti.utils.device import configure_compute, device_name, get_device
 
@@ -126,7 +126,9 @@ def prove_relative_depth(report: dict, *, quick: bool = False) -> None:
         by_ckpt.setdefault(ckpt, []).append((name, ckpt, preprocess))
 
     for ckpt, group in by_ckpt.items():
-        model, _ = build_depth_model("vits", str(device), ckpt)
+        enc = resolve_encoder(ckpt, default="vits")
+        print(f"  Model: encoder={enc}" + (f"  checkpoint={ckpt}" if ckpt else "  (pretrained baseline)"))
+        model, _ = build_depth_model(enc, str(device), ckpt)
         for name, _, preprocess in group:
             row_paths = []
             for frame_path in frames:

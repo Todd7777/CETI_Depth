@@ -17,7 +17,8 @@ teacher_cache_dir: ./data/teacher_cache/vitl_518
 cache_batch_size: 16
 
 epochs: 40
-batch_size: 14
+batch_size: 8
+val_batch_size: 4
 workers: 0
 val_every: 10
 
@@ -25,6 +26,12 @@ lr: 8.0e-6
 encoder_lr: 8.0e-7
 weight_decay: 0.01
 freeze_encoder: false
+
+# Safe resume (no optimizer in best.pt, or after crash): lower LR + freeze ViT
+resume_lr_multiplier: 0.25
+resume_freeze_encoder: true
+max_train_loss: 6.0
+
 use_amp: true
 device: mps
 

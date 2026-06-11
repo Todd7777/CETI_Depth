@@ -12,31 +12,45 @@ build/
 venv/
 env/
 
-# CETI / training artifacts (download or train locally)
+# Checkpoints and weights
 checkpoints/
-data/**
-!data/README.md
-data/teacher_cache/
-ceti/outputs/
 *.pt
 *.pth
 *.ckpt
 
-# Large / generated
-metric_depth/checkpoints
+# Training data and caches
+data/**
+!data/README.md
+data/teacher_cache/
+ceti/outputs/
+metric_depth/checkpoints/
+metric_depth/torchhub/
 torchhub/
+
+# Generated inbox (keep structure only)
+ceti/inbox/uploads/*
+!ceti/inbox/uploads/.gitkeep
+ceti/inbox/results/*
+!ceti/inbox/results/.gitkeep
+ceti/inbox/_seg_test/
+ceti/inbox/_web_staging/
+
+# Point clouds and large exports
+*.ply
+*.npy
+
+# Media
 *.mp4
 !assets/examples_video/*.mp4
 
 # IDE / OS
 .idea/
 .vscode/
+.cursor/
 .DS_Store
 *.swp
 
 # Logs
 *.log
 wandb/
-
-# Hugging Face cache (optional local)
 .cache/

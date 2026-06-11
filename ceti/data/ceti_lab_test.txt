@@ -1,4 +1,4 @@
-rgb/demo18_uw00.jpg depth/demo18_uw00.png 500.0
-rgb/demo18_uw01.jpg depth/demo18_uw01.png 500.0
+rgb/demo16_uw00.jpg depth/demo16_uw00.png 500.0
+rgb/demo16_uw01.jpg depth/demo16_uw01.png 500.0
 rgb/demo1_uw00.jpg depth/demo1_uw00.png 500.0
 rgb/demo1_uw01.jpg depth/demo1_uw01.png 500.0

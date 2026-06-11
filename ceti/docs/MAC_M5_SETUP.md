@@ -80,10 +80,12 @@ bash ceti/scripts/mac_train_bulletproof.sh
 ## Resume training
 
 ```bash
-python ceti/depth/train_whale_depth.py \
-  --config ceti/configs/whale_depth_m5max_128gb.yaml \
-  --resume checkpoints/ceti_whale_depth/last.pt
+bash ceti/scripts/resume_mac_train.sh
 ```
+
+The script **auto-picks `best.pt`** if `last.pt` diverged (train loss much higher than best). Safe resume uses `resume_lr_multiplier` and `resume_freeze_encoder` from config. `last.pt` stores **optimizer state** for seamless continuation; `best.pt` is inference-only (weights).
+
+After `Killed: 9`, lower `batch_size` / `val_batch_size` if needed (default 8 / 4).
 
 Teacher cache is reused if already built.
 

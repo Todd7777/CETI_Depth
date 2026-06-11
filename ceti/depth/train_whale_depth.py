@@ -60,6 +60,20 @@ def build_model(encoder: str, hub_id: str, device: str):
     return model
 
 
+def _resolve_freeze_encoder(cfg: dict, is_resume: bool, args) -> bool:
+    if args.no_freeze_encoder:
+        return False
+    if args.freeze_encoder:
+        return True
+    if is_resume and "resume_freeze_encoder" in cfg:
+        return bool(cfg["resume_freeze_encoder"])
+    return bool(cfg.get("freeze_encoder", False))
+
+
+def _apply_resume_lr(cfg: dict, lr: float, encoder_lr: float, multiplier: float) -> tuple[float, float]:
+    return lr * multiplier, encoder_lr * multiplier
+
+
 def param_groups(model, lr: float, encoder_lr: float, freeze_encoder: bool):
     if freeze_encoder:
         for p in model.pretrained.parameters():
@@ -145,6 +159,29 @@ def main():
     parser.add_argument("--save-dir", type=str, default=None)
     parser.add_argument("--train-list", type=str, default=None)
     parser.add_argument("--resume", type=str, default=None, help="Checkpoint .pt to resume")
+    parser.add_argument(
+        "--start-epoch",
+        type=int,
+        default=None,
+        help="First epoch to run (default: checkpoint epoch + 1 when --resume)",
+    )
+    parser.add_argument(
+        "--resume-lr-multiplier",
+        type=float,
+        default=None,
+        help="Multiply lr/encoder_lr when resuming without optimizer state (config: resume_lr_multiplier)",
+    )
+    parser.add_argument(
+        "--freeze-encoder",
+        action="store_true",
+        default=None,
+        help="Freeze ViT backbone (overrides config; default on safe resume)",
+    )
+    parser.add_argument(
+        "--no-freeze-encoder",
+        action="store_true",
+        help="Train full encoder even when resuming",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -272,11 +309,23 @@ def main():
             print("  torch.compile enabled on student")
         except Exception as e:
             print(f"  torch.compile skipped: {e}")
+    start_epoch = 1
+    best_val = float("inf")
+    best_train = float("inf")
+    resume_ckpt: dict | None = None
     if args.resume:
-        ckpt = torch.load(args.resume, map_location=device, weights_only=False)
-        state = ckpt.get("model", ckpt)
+        resume_ckpt = torch.load(args.resume, map_location=device, weights_only=False)
+        state = resume_ckpt.get("model", resume_ckpt)
         student.load_state_dict(state, strict=False)
-        print(f"Resumed from {args.resume}")
+        done = int(resume_ckpt.get("epoch", 0))
+        start_epoch = args.start_epoch if args.start_epoch is not None else done + 1
+        resume_loss = float(resume_ckpt.get("loss", float("inf")))
+        if resume_ckpt.get("metric") == "val":
+            best_val = resume_loss
+        else:
+            best_train = resume_loss
+        print(f"Resumed weights from {args.resume} (completed epoch {done})")
+        print(f"  Training epochs {start_epoch}–{epochs}")
 
     train_augment = cfg.get("marine_augment", True) and not use_cache
     if use_cache and cfg.get("marine_augment", True):
@@ -315,16 +364,55 @@ def main():
             augment=False,
             teacher_cache_dir=cache_dir if use_cache else None,
         )
-        val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+        val_batch = int(cfg.get("val_batch_size", min(batch_size, 4)))
+        val_loader = DataLoader(val_ds, batch_size=val_batch, shuffle=False, num_workers=0)
+
+    is_resume = resume_ckpt is not None
+    freeze_encoder = _resolve_freeze_encoder(cfg, is_resume, args)
+    lr = float(cfg["lr"])
+    encoder_lr = float(cfg.get("encoder_lr", lr * 0.1))
+    optimizer_restored = False
+
+    if is_resume and resume_ckpt is not None:
+        ckpt_freeze = resume_ckpt.get("freeze_encoder")
+        has_optimizer = "optimizer" in resume_ckpt
+        structures_match = has_optimizer and ckpt_freeze is not None and bool(ckpt_freeze) == freeze_encoder
+
+        if structures_match:
+            lr = float(resume_ckpt.get("lr", lr))
+            encoder_lr = float(resume_ckpt.get("encoder_lr", encoder_lr))
+        else:
+            mult = args.resume_lr_multiplier
+            if mult is None:
+                mult = float(cfg.get("resume_lr_multiplier", 0.25))
+            lr, encoder_lr = _apply_resume_lr(cfg, lr, encoder_lr, mult)
+            if has_optimizer and not structures_match:
+                print(
+                    f"  Resume: optimizer state skipped (freeze_encoder {ckpt_freeze} → {freeze_encoder})"
+                )
+            elif not has_optimizer:
+                print(
+                    f"  Resume: no optimizer in checkpoint — lr×{mult}, freeze_encoder={freeze_encoder}"
+                )
 
     optimizer = torch.optim.AdamW(
-        param_groups(
-            student,
-            lr=cfg["lr"],
-            encoder_lr=cfg.get("encoder_lr", cfg["lr"] * 0.1),
-            freeze_encoder=cfg.get("freeze_encoder", False),
-        ),
+        param_groups(student, lr=lr, encoder_lr=encoder_lr, freeze_encoder=freeze_encoder),
         weight_decay=cfg.get("weight_decay", 0.01),
+    )
+
+    if is_resume and resume_ckpt is not None and "optimizer" in resume_ckpt:
+        ckpt_freeze = resume_ckpt.get("freeze_encoder")
+        if ckpt_freeze is not None and bool(ckpt_freeze) == freeze_encoder:
+            try:
+                optimizer.load_state_dict(resume_ckpt["optimizer"])
+                optimizer_restored = True
+                print("  Restored optimizer state from checkpoint")
+            except Exception as e:
+                print(f"  WARNING: could not load optimizer state ({e})")
+
+    print(
+        f"  Optimizer: lr={lr:.2e} encoder_lr={encoder_lr:.2e} "
+        f"freeze_encoder={freeze_encoder} restored={optimizer_restored}"
     )
 
     ss_loss = ScaleShiftInvariantLoss()
@@ -334,11 +422,28 @@ def main():
     if teacher is None and not use_cache:
         raise RuntimeError("Teacher model required when cache_teacher is false")
 
-    best_val = float("inf")
-    best_train = float("inf")
-    for epoch in range(1, epochs + 1):
+    best_ckpt = save_dir / "best.pt"
+    if best_ckpt.exists():
+        try:
+            b = torch.load(best_ckpt, map_location="cpu", weights_only=False)
+            b_loss = float(b.get("loss", float("inf")))
+            if b.get("metric") == "val":
+                best_val = min(best_val, b_loss)
+            else:
+                best_train = min(best_train, b_loss)
+        except Exception:
+            pass
+
+    if start_epoch > epochs:
+        print(f"Nothing to do: start_epoch={start_epoch} > epochs={epochs}")
+        return
+
+    max_train_loss = float(cfg.get("max_train_loss", 6.0))
+
+    for epoch in range(start_epoch, epochs + 1):
         student.train()
         epoch_loss = 0.0
+        n_steps = 0
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}")
         for batch in pbar:
             images = batch["image"].to(device, non_blocking=True)
@@ -358,14 +463,27 @@ def main():
             torch.nn.utils.clip_grad_norm_(student.parameters(), 1.0)
             optimizer.step()
 
-            epoch_loss += loss.item()
-            pbar.set_postfix(loss=f"{loss.item():.4f}")
+            step_loss = loss.item()
+            if not np.isfinite(step_loss):
+                print(f"\nERROR: non-finite loss at epoch {epoch} — stopping. Restore from best.pt")
+                sys.exit(1)
+            epoch_loss += step_loss
+            n_steps += 1
+            pbar.set_postfix(loss=f"{step_loss:.4f}")
 
         empty_cache(device)
 
-        avg_train = epoch_loss / len(train_loader)
+        avg_train = epoch_loss / max(n_steps, 1)
+        if avg_train > max_train_loss:
+            print(
+                f"\nERROR: epoch {epoch} train_loss={avg_train:.4f} > {max_train_loss} (diverged). "
+                f"Stopping without overwriting checkpoints. Resume from best.pt:\n"
+                f"  bash ceti/scripts/resume_mac_train.sh\n"
+            )
+            sys.exit(1)
         avg_val = None
         if val_loader is not None and (epoch % val_every == 0 or epoch == epochs):
+            empty_cache(device)
             avg_val = validate(
                 student,
                 teacher,
@@ -380,32 +498,84 @@ def main():
             print(f"Epoch {epoch}: train_loss={avg_train:.4f} val_loss={avg_val:.4f}")
             if avg_val < best_val:
                 best_val = avg_val
-                _save_checkpoint(save_dir / "best.pt", student, cfg, encoder, epoch, avg_val)
+                _save_checkpoint(
+                    save_dir / "best.pt",
+                    student,
+                    cfg,
+                    encoder,
+                    epoch,
+                    avg_val,
+                    metric="val",
+                )
         else:
             print(f"Epoch {epoch}: train_loss={avg_train:.4f}")
-            if avg_train < best_train:
+            # Only update best.pt on train loss when we are not tracking val (avoids
+            # overwriting a better val checkpoint on non-val epochs).
+            if val_loader is None and avg_train < best_train:
                 best_train = avg_train
-                _save_checkpoint(save_dir / "best.pt", student, cfg, encoder, epoch, avg_train)
+                _save_checkpoint(
+                    save_dir / "best.pt",
+                    student,
+                    cfg,
+                    encoder,
+                    epoch,
+                    avg_train,
+                    metric="train",
+                )
 
-        _save_checkpoint(save_dir / "last.pt", student, cfg, encoder, epoch, avg_train)
+        empty_cache(device)
+        _save_checkpoint(
+            save_dir / "last.pt",
+            student,
+            cfg,
+            encoder,
+            epoch,
+            avg_train,
+            metric="train",
+            optimizer=optimizer,
+            freeze_encoder=freeze_encoder,
+            lr=lr,
+            encoder_lr=encoder_lr,
+            save_optimizer=True,
+        )
 
     print(f"\nTraining complete. Checkpoints in {save_dir}")
     print("Inference:")
     print(f"  python ceti/depth/infer_robot.py --depth-checkpoint {save_dir}/best.pt --encoder {encoder}")
 
 
-def _save_checkpoint(path: Path, model, cfg: dict, encoder: str, epoch: int, loss: float):
-    torch.save(
-        {
-            "model": model.state_dict(),
-            "encoder": encoder,
-            "epoch": epoch,
-            "loss": loss,
-            "config": cfg,
-            "type": "ceti_underwater_field",
-        },
-        path,
-    )
+def _save_checkpoint(
+    path: Path,
+    model,
+    cfg: dict,
+    encoder: str,
+    epoch: int,
+    loss: float,
+    *,
+    metric: str = "train",
+    optimizer: torch.optim.Optimizer | None = None,
+    freeze_encoder: bool = False,
+    lr: float | None = None,
+    encoder_lr: float | None = None,
+    save_optimizer: bool = False,
+):
+    payload: dict = {
+        "model": model.state_dict(),
+        "encoder": encoder,
+        "epoch": epoch,
+        "loss": loss,
+        "metric": metric,
+        "freeze_encoder": freeze_encoder,
+        "config": cfg,
+        "type": "ceti_underwater_field",
+    }
+    if lr is not None:
+        payload["lr"] = lr
+    if encoder_lr is not None:
+        payload["encoder_lr"] = encoder_lr
+    if save_optimizer and optimizer is not None:
+        payload["optimizer"] = optimizer.state_dict()
+    torch.save(payload, path)
 
 
 if __name__ == "__main__":
