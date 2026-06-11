@@ -1,61 +1,61 @@
 #!/usr/bin/env bash
-# CETI project setup script
+# CETI Depth — environment setup (Linux + macOS).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+PYTHON="${REPO_ROOT}/.venv/bin/python"
+PIP="${REPO_ROOT}/.venv/bin/pip"
+CKPT="${REPO_ROOT}/checkpoints/ceti_whale_depth/best.pt"
+
 echo "============================================"
-echo " CETI Depth & Whale Perception — Setup"
+echo " CETI Depth — Point Cloud Setup"
 echo "============================================"
 
-# Python venv (optional)
-if [ ! -d ".venv" ]; then
-    echo "[1/5] Creating virtual environment..."
-    python3 -m venv .venv
+if [ ! -x "$PYTHON" ]; then
+  echo "Creating virtual environment…"
+  python3 -m venv .venv
 fi
 
-source .venv/bin/activate
+"$PIP" install -U pip wheel
+"$PIP" install -r requirements.txt
 
-echo "[2/5] Installing base dependencies..."
-pip install -q --upgrade pip
-pip install -q -r requirements.txt
-pip install -q -r ceti/requirements.txt
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  echo "macOS — using default PyTorch (MPS when available)."
+elif python3 -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
+  echo "CUDA detected — installing GPU PyTorch (cu124)."
+  "$PIP" install -U torch torchvision --index-url https://download.pytorch.org/whl/cu124
+else
+  echo "No CUDA — installing CPU PyTorch."
+  "$PIP" install -U torch torchvision --index-url https://download.pytorch.org/whl/cpu
+fi
 
-echo "[3/5] Creating directory structure..."
-mkdir -p checkpoints
-mkdir -p data/{flsea,squid,ceti_lab,ceti_field}
-mkdir -p data/whale/{yolo,bootstrap,raw_frames,pseudo_labels}
-mkdir -p ceti/{outputs,checkpoints,data}
-mkdir -p ceti/data
+mkdir -p checkpoints/ceti_whale_depth ceti/inbox/uploads ceti/inbox/results
 
-echo "[4/5] Downloading checkpoints..."
-bash ceti/scripts/download_checkpoints.sh || echo "  (checkpoint download skipped — run manually if needed)"
+if [ ! -f "$CKPT" ]; then
+  echo ""
+  echo "Checkpoint not found. Download with:"
+  echo "  bash ceti/scripts/download_checkpoint.sh"
+fi
 
-echo "[5/5] Creating placeholder file lists..."
-for ds in flsea squid ceti_lab; do
-    for split in train test; do
-        f="ceti/data/${ds}_${split}.txt"
-        if [ ! -f "$f" ]; then
-            echo "# Placeholder — run prepare_underwater_data.sh after downloading ${ds}" > "$f"
-        fi
-    done
-done
+"$PYTHON" -c "
+from ceti.bootstrap import ensure_paths
+ensure_paths()
+import torch
+from pathlib import Path
+print('PyTorch', torch.__version__)
+if torch.cuda.is_available():
+    print('Device: cuda')
+elif getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
+    print('Device: mps')
+else:
+    print('Device: cpu')
+print('Checkpoint:', Path('$CKPT').resolve(), '(exists:', Path('$CKPT').is_file(), ')')
+"
 
-# Bootstrap whale demo data
-python ceti/whale/data_curation/download_public.py --demo || true
-
-# Real underwater field imagery (DAVIS + HF datasets)
-bash ceti/scripts/curate_underwater_field.sh 2>/dev/null || true
-
-echo ""
-echo "============================================"
-echo " Setup complete!"
-echo "============================================"
 echo ""
 echo "Next steps:"
-echo "  1. bash ceti/scripts/download_checkpoints.sh   # if not done"
-echo "  2. python ceti/scripts/smoke_test.py           # verify installation"
-echo "  3. bash ceti/scripts/prove_pipeline.sh --skip-metric-train  # prove UW RGB→depth"
-echo "  4. Read ceti/README.md for full workflow"
-echo ""
+echo "  bash ceti/scripts/download_checkpoint.sh   # if checkpoint missing"
+echo "  bash ceti/scripts/launch_portal.sh"
+echo "  bash ceti/scripts/run_batch.sh               # batch process inbox/uploads"

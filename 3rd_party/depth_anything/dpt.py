@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -143,8 +144,9 @@ class DPT_DINOv2(nn.Module):
         assert encoder in ['vits', 'vitb', 'vitl']
         
         # in case the Internet connection is not stable, please load the DINOv2 locally
+        hub_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "torchhub", "facebookresearch_dinov2_main")
         if localhub:
-            self.pretrained = torch.hub.load('torchhub/facebookresearch_dinov2_main', 'dinov2_{:}14'.format(encoder), source='local', pretrained=False)
+            self.pretrained = torch.hub.load(hub_root, 'dinov2_{:}14'.format(encoder), source='local', pretrained=False)
         else:
             self.pretrained = torch.hub.load('facebookresearch/dinov2', 'dinov2_{:}14'.format(encoder))
         

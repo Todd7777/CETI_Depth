@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CETI research portal (Flask).
+# CETI Point Cloud Portal (Flask).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -17,18 +17,15 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
 fi
 export CETI_PORTAL_PORT="${CETI_PORTAL_PORT:-7860}"
 export CETI_TANK_PRESET="${CETI_TANK_PRESET:-tank_roi_ceti_full}"
-export CETI_DEPTH_MODE="${CETI_DEPTH_MODE:-pointcloud}"
 
 CKPT="${REPO_ROOT}/checkpoints/ceti_whale_depth/best.pt"
 if [ ! -f "$CKPT" ]; then
   echo "ERROR: missing ${CKPT}"
+  echo "  bash ceti/scripts/download_checkpoint.sh"
   exit 1
 fi
 
-"$PYTHON" -c "import flask" 2>/dev/null || {
-  echo "Installing Flask…"
-  "$PYTHON" -m pip install -q 'flask>=3.0.0'
-}
+"$PYTHON" -c "import flask" 2>/dev/null || "$PYTHON" -m pip install -q 'flask>=3.0.0'
 
 if command -v lsof >/dev/null 2>&1; then
   OLD_PIDS="$(lsof -ti tcp:"${CETI_PORTAL_PORT}" 2>/dev/null || true)"
@@ -40,12 +37,11 @@ if command -v lsof >/dev/null 2>&1; then
 fi
 
 echo "============================================"
-echo " CETI Research Portal"
+echo " CETI Point Cloud Portal"
 echo "============================================"
 echo "  URL:    http://127.0.0.1:${CETI_PORTAL_PORT}"
 echo "  Health: http://127.0.0.1:${CETI_PORTAL_PORT}/health"
-echo "  Preset: ${CETI_TANK_PRESET}"
-echo "  CLI:    bash ceti/scripts/run_upload_pipeline.sh"
+echo "  Batch:  bash ceti/scripts/run_batch.sh"
 echo ""
 
 exec "$PYTHON" -u ceti/scripts/ceti_depth_portal_web.py

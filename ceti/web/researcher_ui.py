@@ -146,12 +146,10 @@ def page_shell(
 
 
 def portal_nav(active: str) -> list[tuple[str, str, bool]]:
-    items = [
-        ("Point Clouds", "/", active == "home"),
-        ("Noise Study", "/noise", active == "noise"),
+    return [
+        ("Upload", "/", active == "home"),
         ("Browse Runs", "/browse", active == "browse"),
     ]
-    return items
 
 
 def render_pointcloud_results(
@@ -267,134 +265,20 @@ def render_pointcloud_results(
     return page_shell(title=f"CETI Results — {run_id}", body=body, nav=portal_nav("home"))
 
 
-def render_noise_study_index(
-    manifest: dict,
-    *,
-    study_url,
-    asset_url,
-    zip_url: str = "",
-) -> str:
-    cards = []
-    for item in manifest.get("images", []):
-        stem = Path(item["source"]).stem
-        run_id = manifest["run_id"]
-        board = f"{stem}/{stem}_research_board.jpg"
-        cards.append(
-            f'<article class="card">'
-            f'<h2>{_esc(item["source"])}</h2>'
-            f'<div class="chips">'
-            f'<span class="chip">{item.get("mask_pixels",0):,} mask px</span>'
-            f'<span class="chip blue">{_esc(item.get("mask_mode",""))}</span>'
-            f'</div>'
-            f'<a href="{_esc(study_url(run_id, stem))}">'
-            f'<img class="hero-img" src="{_esc(asset_url(run_id, board))}" alt="research board"/>'
-            f"</a>"
-            f'<p class="links">'
-            f'<a href="{_esc(study_url(run_id, stem))}">Open per-level comparison →</a> · '
-            f'<a href="{_esc(asset_url(run_id, f"{stem}/{stem}_noise_study.json"))}">JSON metrics</a>'
-            f"</p>"
-            f'</article>'
-        )
-
-    body = f"""
-<section class="hero">
-  <h1>Depth Noise Sensitivity — {_esc(manifest["run_id"])}</h1>
-  <p class="lead">Gaussian noise on payload depth at 0, 5, 10, 20, 30, 40% of depth σ. Each row shows segmentation, clean vs noised depth, delta, and 3D.</p>
-  <p class="meta">Device {_esc(manifest.get("device",""))} · Method {_esc(manifest.get("method",""))}</p>
-  <p class="links"><a class="btn secondary" href="{_esc(zip_url or f"/noise/results/{manifest['run_id']}/download.zip")}">Download ZIP</a></p>
-</section>
-{"".join(cards)}
-<p class="meta"><a href="/noise">← Run another study</a></p>
-"""
-    return page_shell(title=f"Noise Study — {manifest['run_id']}", body=body, nav=portal_nav("noise"))
-
-
-def render_noise_study_detail(
-    image_summary: dict,
-    *,
-    run_id: str,
-    asset_url,
-    index_url: str,
-) -> str:
-    stem = Path(image_summary["source"]).stem
-    rows_html = []
-    for rec in image_summary.get("results", []):
-        pct = rec.get("noise_pct", 0)
-        disp = rec.get("displacement_vs_0pct") or {}
-        disp_txt = "—"
-        if disp.get("mean") is not None:
-            disp_txt = f"{disp['mean']:.3f} / {disp.get('rms',0):.3f} (mean/rms)"
-        rows_html.append(
-            f"<tr><td>{pct}%</td><td>{rec.get('point_count',0):,}</td>"
-            f"<td>{rec.get('plane_fit_rms',0):.3f}</td><td>{disp_txt}</td>"
-            f"<td><a href=\"{_esc(asset_url(run_id, rec.get('research_row','')))}\">row</a> · "
-            f"<a href=\"{_esc(asset_url(run_id, rec.get('ply','')))}\">ply</a></td></tr>"
-        )
-
-    board = image_summary.get("research_board", f"{stem}/{stem}_research_board.jpg")
-    seg = image_summary.get("segmentation_preview", f"{stem}/{stem}_segmentation.jpg")
-    row_thumbs = []
-    for rec in image_summary.get("results", []):
-        pct = rec.get("noise_pct", 0)
-        rel = rec.get("research_row", "")
-        if rel:
-            row_thumbs.append(
-                f'<div class="thumb"><img src="{_esc(asset_url(run_id, rel))}" alt="{pct}%"/>'
-                f'<div class="cap">{pct}% noise — segmentation · clean · noised · Δ · 3D</div></div>'
-            )
-    rows_grid = f'<div class="thumb-grid">{"".join(row_thumbs)}</div>' if row_thumbs else ""
-
-    body = f"""
-<section class="hero">
-  <h1>{_esc(image_summary["source"])}</h1>
-  <p class="lead">Per-noise-level comparison: payload segmentation reference + noised depth + delta + 3D.</p>
-  <p class="meta">Run {_esc(run_id)} · Mask {_esc(image_summary.get("mask_mode",""))} · depth σ ≈ {_esc(image_summary.get("depth_std_payload",""))}</p>
-</section>
-<article class="card">
-  <h2>Full research board (all noise levels)</h2>
-  <img class="hero-img" src="{_esc(asset_url(run_id, board))}" alt="research board"/>
-</article>
-<article class="card">
-  <h2>Reference payload segmentation</h2>
-  <img class="hero-img" src="{_esc(asset_url(run_id, seg))}" alt="segmentation"/>
-</article>
-<article class="card">
-  <h2>Per-noise rows</h2>
-  {rows_grid}
-</article>
-<article class="card">
-  <h2>Metrics</h2>
-  <table class="metrics">
-    <thead><tr><th>Noise</th><th>Points</th><th>Plane RMS</th><th>Displacement vs 0%</th><th>Assets</th></tr></thead>
-    <tbody>{"".join(rows_html)}</tbody>
-  </table>
-</article>
-<p class="meta"><a href="{_esc(index_url)}">← Back to study index</a></p>
-"""
-    return page_shell(title=f"Noise — {stem}", body=body, nav=portal_nav("noise"))
-
-
-def render_browse_page(pointcloud_runs: list[dict], noise_runs: list[dict]) -> str:
+def render_browse_page(pointcloud_runs: list[dict]) -> str:
     pc_items = "".join(
         f'<li><a href="/results/{_esc(r["run_id"])}">{_esc(r["run_id"])}</a> '
-        f'<span class="meta">({r.get("n_outputs",0)} outputs, {r.get("mode","")})</span></li>'
+        f'<span class="meta">({r.get("n_outputs", 0)} outputs)</span></li>'
         for r in pointcloud_runs
-    ) or "<li class='meta'>No runs yet</li>"
-    noise_items = "".join(
-        f'<li><a href="/noise/results/{_esc(r["run_id"])}">{_esc(r["run_id"])}</a> '
-        f'<span class="meta">({r.get("n_images",0)} images)</span></li>'
-        for r in noise_runs
-    ) or "<li class='meta'>No noise studies yet</li>"
+    ) or "<li class='meta'>No runs yet — upload images from the home page.</li>"
 
     body = f"""
 <section class="hero">
   <h1>Browse Results</h1>
-  <p class="lead">All point-cloud pipeline runs and noise sensitivity studies.</p>
+  <p class="lead">All point-cloud pipeline runs.</p>
 </section>
-<div class="grid-2">
-  <article class="card"><h2>Point cloud runs</h2><ul>{pc_items}</ul></article>
-  <article class="card"><h2>Noise studies</h2><ul>{noise_items}</ul></article>
-</div>
+<article class="card"><ul>{pc_items}</ul></article>
+<p class="meta"><a href="/">← Upload more</a></p>
 """
     return page_shell(title="Browse CETI Results", body=body, nav=portal_nav("browse"))
 

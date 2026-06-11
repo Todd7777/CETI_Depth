@@ -12,36 +12,35 @@ build/
 venv/
 env/
 
-# Checkpoints and weights
+# Weights (download separately — see ceti/scripts/download_checkpoint.sh)
 checkpoints/
 *.pt
 *.pth
 *.ckpt
 
-# Training data and caches
-data/**
-!data/README.md
-data/teacher_cache/
-ceti/outputs/
-metric_depth/checkpoints/
-metric_depth/torchhub/
-torchhub/
+# Local archive of legacy code and experiments (not published)
+archive/
 
-# Generated inbox (keep structure only)
+# Generated outputs
 ceti/inbox/uploads/*
 !ceti/inbox/uploads/.gitkeep
 ceti/inbox/results/*
 !ceti/inbox/results/.gitkeep
-ceti/inbox/_seg_test/
 ceti/inbox/_web_staging/
+ceti/inbox/_seg_test/
+ceti/outputs/
 
-# Point clouds and large exports
+# Large exports
 *.ply
 *.npy
 
-# Media
-*.mp4
-!assets/examples_video/*.mp4
+# Data caches
+data/**
+
+# Third-party runtime caches inside vendored trees
+3rd_party/metric_depth/checkpoints/
+3rd_party/metric_depth/torchhub/
+3rd_party/torchhub/
 
 # IDE / OS
 .idea/

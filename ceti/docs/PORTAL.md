@@ -1,74 +1,47 @@
-# Research portal and upload pipeline
+# CETI Point Cloud Portal
 
-Upload JPEG or MP4 tank footage and produce CETI depth maps and 3D point clouds.
+Web UI and batch CLI for tank image → 3D point cloud generation.
 
-## Prerequisites
+## Setup
 
 ```bash
-bash ceti/scripts/setup_mac_mps.sh   # macOS
-# or
-bash ceti/scripts/setup_pointcloud_linux.sh   # Linux
-
-bash ceti/scripts/download_ceti_checkpoint.sh
-ls checkpoints/ceti_whale_depth/best.pt
+bash ceti/scripts/setup.sh
+bash ceti/scripts/download_checkpoint.sh
 ```
 
-The fine-tuned model (~1.2 GB) is hosted on Hugging Face (`Todd7777/ceti-whale-depth`), not in git.
-
-## Web portal
+## Portal
 
 ```bash
 bash ceti/scripts/launch_portal.sh
 ```
 
-1. Open http://127.0.0.1:7860  
-2. Upload media  
-3. Download results or use **Explore payload 3D** / **Explore scene 3D**
+Open http://127.0.0.1:7860 — upload images, browse runs, 3D PLY explorer.
 
-## Drop folder
+## Batch (CLI)
 
-| Step | Action |
-|------|--------|
-| 1 | Copy `.jpg`, `.png`, or `.mp4` into `ceti/inbox/uploads/` |
-| 2 | Run `bash ceti/scripts/run_upload_pipeline.sh` |
-| 3 | Open `ceti/inbox/results/<timestamp>/index.html` |
-
-## Outputs
-
-```
-results/<timestamp>/
-  pointclouds/     *.ply, *_payload_mask.png, *_intrinsics.json
-  previews/        showcase boards, segmentation overlays, 3D snapshots
-  manifest.json
-  web_api.json
-  index.html
+```bash
+cp /path/to/tank/*.png ceti/inbox/uploads/
+bash ceti/scripts/run_batch.sh
 ```
 
-## Modes
+Output: `ceti/inbox/results/<timestamp>/` with `index.html`, `pointclouds/*.ply`, previews.
 
-| `CETI_DEPTH_MODE` | Output |
-|-------------------|--------|
-| `pointcloud` (default) | Payload + tank-scene PLY, segmentation, 3D explorer |
-| `relative` | RGB \| depth previews only |
-| `accurate` | Metric-aligned depth maps and distance JSON |
+## Linux server
 
-## Troubleshooting
+Same commands. `setup.sh` installs CUDA PyTorch when a GPU is detected; otherwise CPU.
 
-| Issue | Resolution |
-|-------|------------|
-| Missing checkpoint | Run `bash ceti/scripts/download_ceti_checkpoint.sh` |
-| Empty upload folder | Add files to `ceti/inbox/uploads/` |
-| Slow video | ViT-L on MPS ~3–4 FPS; use shorter clips for demos |
-| Flask missing | `pip install flask` (included in setup script) |
+Bind to all interfaces (optional):
+
+```bash
+# Edit ceti/scripts/ceti_depth_portal_web.py host=0.0.0.0 for remote access
+CETI_PORTAL_PORT=7860 bash ceti/scripts/launch_portal.sh
+```
 
 ## Environment
 
-```bash
-export CETI_TANK_PRESET=tank_roi_ceti_full
-export CETI_INBOX=~/path/to/uploads
-export CETI_DEPTH_CKPT=/path/to/best.pt
-```
-
-## API integration
-
-Structured paths for frontends: see `web_api.json` in each run directory.
+| Variable | Default |
+|----------|---------|
+| `CETI_DEVICE` | `cuda` (Linux) / `mps` (macOS) |
+| `CETI_TANK_PRESET` | `tank_roi_ceti_full` |
+| `CETI_DEPTH_CKPT` | `checkpoints/ceti_whale_depth/best.pt` |
+| `CETI_INBOX` | `ceti/inbox/uploads` |
